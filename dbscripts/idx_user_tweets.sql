@@ -1,0 +1,1 @@
+CREATE INDEX idx_user_tweets ON Tweets(UserID, CreatedAt DESC);

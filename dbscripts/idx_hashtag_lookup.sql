@@ -1,0 +1,1 @@
+CREATE INDEX idx_hashtag_lookup ON Hashtags(Hashtag);
