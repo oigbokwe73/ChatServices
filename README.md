@@ -6,6 +6,34 @@
 This section provides an in-depth look at the first five steps of the chat messaging system, covering how a message is **ingested, processed, and stored** before being delivered to its intended recipient.
 
 ---
+## **Mermaid Diagram**
+```mermaid
+sequenceDiagram
+    participant User as User (Mobile/Web App)
+    participant FunctionHTTP as REST Function (HTTP Trigger)
+    participant ServiceBus as Service Bus Queue
+    participant FunctionBus as Function (Service Bus Trigger)
+    participant TableStorage as Azure Table Storage
+    participant SQL as Azure SQL Database
+
+    User->>FunctionHTTP: Send chat message (POST /sendMessage)
+    FunctionHTTP->>FunctionHTTP: Validate message
+    alt Message Valid
+        FunctionHTTP->>ServiceBus: Enqueue message in Service Bus
+    else Message Invalid
+        FunctionHTTP-->>User: Return error response
+    end
+
+    ServiceBus->>FunctionBus: Deliver message from queue
+    FunctionBus->>FunctionBus: Process message
+    alt Recipient Online
+        FunctionBus-->>User: Deliver via WebSocket
+    else Recipient Offline
+        FunctionBus->>TableStorage: Store message in Table Storage
+        FunctionBus->>SQL: Store message in Azure SQL
+    end
+```
+---
 
 ## **1. User Sends a Chat Message via the Client Application**
 - The user initiates a message from a **mobile app** or **web application**.
@@ -105,33 +133,6 @@ Content-Type: application/json
 
 ---
 
-## **Mermaid Diagram**
-```mermaid
-sequenceDiagram
-    participant User as User (Mobile/Web App)
-    participant FunctionHTTP as REST Function (HTTP Trigger)
-    participant ServiceBus as Service Bus Queue
-    participant FunctionBus as Function (Service Bus Trigger)
-    participant TableStorage as Azure Table Storage
-    participant SQL as Azure SQL Database
-
-    User->>FunctionHTTP: Send chat message (POST /sendMessage)
-    FunctionHTTP->>FunctionHTTP: Validate message
-    alt Message Valid
-        FunctionHTTP->>ServiceBus: Enqueue message in Service Bus
-    else Message Invalid
-        FunctionHTTP-->>User: Return error response
-    end
-
-    ServiceBus->>FunctionBus: Deliver message from queue
-    FunctionBus->>FunctionBus: Process message
-    alt Recipient Online
-        FunctionBus-->>User: Deliver via WebSocket
-    else Recipient Offline
-        FunctionBus->>TableStorage: Store message in Table Storage
-        FunctionBus->>SQL: Store message in Azure SQL
-    end
-```
 
 ## **Key Takeaways**
 1. **Event-Driven Approach**: Azure Functions and Service Bus ensure high scalability.
