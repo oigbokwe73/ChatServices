@@ -342,35 +342,38 @@ Here’s a stored procedure to hash and salt passwords in **Azure SQL Database**
 
 ### **Stored Procedure to Salt and Hash Passwords**
 ```sql
-CREATE PROCEDURE SaltAndHashPassword
-    @UserId uniqueidentifier,
-    @PlainTextPassword NVARCHAR(256)
+CREATE PROCEDURE VerifyPassword
+    @UserId UNIQUEIDENTIFIER,
+    @PlainTextPassword NVARCHAR(256),
+    @IsValid BIT OUTPUT
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Generate a random salt (16 bytes, converted to HEX)
-    DECLARE @Salt VARBINARY(16) = CRYPT_GEN_RANDOM(16);
+    -- Retrieve stored hashed password and salt for the user
+    DECLARE @StoredHashedPassword NVARCHAR(128);
+    DECLARE @StoredSalt NVARCHAR(64);
 
-    -- Convert salt to a HEX string for storage
-    DECLARE @SaltHex NVARCHAR(64) = CONVERT(NVARCHAR(64), @Salt, 1);
-
-    -- Concatenate password with salt and hash using SHA2_512
-    DECLARE @HashedPassword VARBINARY(64) = HASHBYTES('SHA2_512', @PlainTextPassword + @SaltHex);
-
-    -- Convert the hashed password to a HEX string for storage
-    DECLARE @HashedPasswordHex NVARCHAR(128) = CONVERT(NVARCHAR(128), @HashedPassword, 1);
-
-    -- Update or Insert into the Users table
-    UPDATE Users
-    SET PasswordHash = @HashedPasswordHex, PasswordSalt = @SaltHex
+    SELECT @StoredHashedPassword = PasswordHash, @StoredSalt = PasswordSalt
+    FROM Users
     WHERE UserId = @UserId;
 
-    IF @@ROWCOUNT = 0
+    -- If user not found, return invalid
+    IF @StoredHashedPassword IS NULL OR @StoredSalt IS NULL
     BEGIN
-        INSERT INTO Users (UserId, PasswordHash, PasswordSalt)
-        VALUES (@UserId, @HashedPasswordHex, @SaltHex);
+        SET @IsValid = 0;
+        RETURN;
     END
+
+    -- Recreate the hashed password using stored salt
+    DECLARE @ComputedHash VARBINARY(64) = HASHBYTES('SHA2_512', @PlainTextPassword + @StoredSalt);
+    DECLARE @ComputedHashHex NVARCHAR(128) = CONVERT(NVARCHAR(128), @ComputedHash, 1);
+
+    -- Compare stored and computed hashes
+    IF @ComputedHashHex = @StoredHashedPassword
+        SET @IsValid = 1;
+    ELSE
+        SET @IsValid = 0;
 END;
 ```
 
