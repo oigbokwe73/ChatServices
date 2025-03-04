@@ -343,7 +343,7 @@ Here’s a stored procedure to hash and salt passwords in **Azure SQL Database**
 ### **Stored Procedure to Salt and Hash Passwords**
 ```sql
 CREATE PROCEDURE SaltAndHashPassword
-    @UserId INT,
+    @UserId uniqueidentifier,
     @PlainTextPassword NVARCHAR(256)
 AS
 BEGIN
@@ -363,12 +363,12 @@ BEGIN
 
     -- Update or Insert into the Users table
     UPDATE Users
-    SET HashedPassword = @HashedPasswordHex, Salt = @SaltHex
+    SET PasswordHash = @HashedPasswordHex, PasswordSalt = @SaltHex
     WHERE UserId = @UserId;
 
     IF @@ROWCOUNT = 0
     BEGIN
-        INSERT INTO Users (UserId, HashedPassword, Salt)
+        INSERT INTO Users (UserId, PasswordHash, PasswordSalt)
         VALUES (@UserId, @HashedPasswordHex, @SaltHex);
     END
 END;
