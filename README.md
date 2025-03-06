@@ -86,8 +86,10 @@ Content-Type: application/json
 
 **Azure Service Bus Configuration:**
 - **Queue Name:** `chat-queue`
-- **Topic Name:** `chat-topic` (for group messaging)
-- **Subscription:** `chat-subscription`
+- **Topic Name:** `receiver`
+- **Topic Name:** `sender` 
+- **Subscription:** `receiver`
+- **Subscription:** `sender `
 
 **Service Bus Message Structure:**
 ```json
