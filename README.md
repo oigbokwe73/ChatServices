@@ -490,5 +490,106 @@ This schema provides a **highly scalable Twitter-like chat and messaging system*
 - **Media uploads (images, videos, GIFs)**
 - **Notifications for user interactions**
 
+### **Stored Procedure to Create a User with Password and Salt**  
 
+This **stored procedure** inserts a new user into the `Users` table, ensuring that the password is securely stored with a **salt**.
+
+---
+
+### **SQL Stored Procedure**
+```sql
+CREATE PROCEDURE CreateUser
+    @Username NVARCHAR(50),
+    @Email NVARCHAR(255),
+    @Password NVARCHAR(100) -- Plain text password (hashed inside procedure)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Generate a unique Salt (16 bytes)
+    DECLARE @Salt VARBINARY(16);
+    DECLARE @PasswordHash VARBINARY(64);
+    SET @Salt = CRYPT_GEN_RANDOM(16);
+
+    -- Hash the password using SHA2_512 with the salt
+    SET @PasswordHash = HASHBYTES('SHA2_512', @Password + CONVERT(NVARCHAR, @Salt));
+
+    -- Insert new user into the Users table
+    INSERT INTO Users (UserID, Username, Email, PasswordHash, PasswordSalt, DisplayName, CreatedAt)
+    VALUES (NEWID(), @Username, @Email, @PasswordHash, @Salt, @Username, GETUTCDATE());
+END;
+```
+
+---
+
+### **How to Use the Stored Procedure**
+You can call this procedure to create a new user by passing **username, email, and password** as parameters.
+
+```sql
+EXEC CreateUser @Username = 'johndoe', 
+                @Email = 'johndoe@example.com', 
+                @Password = 'SecurePassword123!';
+```
+
+---
+
+### **How This Works:**
+1. **Generates a Salt (`CRYPT_GEN_RANDOM(16)`)**  
+   - Creates a **16-byte salt** for added security.
+2. **Hashes the Password (`HASHBYTES('SHA2_512', @Password + Salt)`)**  
+   - Combines the **password and salt** before hashing with `SHA2_512`.
+3. **Inserts Data into the `Users` Table**  
+   - Stores `UserID`, `Username`, `Email`, `PasswordHash`, `PasswordSalt`, and `CreatedAt`.
+
+---
+
+### **Retrieving and Verifying User Login**
+To authenticate a user:
+1. Retrieve the `PasswordSalt` and `PasswordHash` from the database.
+2. Hash the provided password using the same `SHA2_512` method.
+3. Compare it with the stored hash.
+
+```sql
+CREATE PROCEDURE AuthenticateUser
+    @Username NVARCHAR(50),
+    @Password NVARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @StoredSalt VARBINARY(16);
+    DECLARE @StoredHash VARBINARY(64);
+    DECLARE @ComputedHash VARBINARY(64);
+
+    -- Retrieve stored salt and password hash
+    SELECT @StoredSalt = PasswordSalt, @StoredHash = PasswordHash 
+    FROM Users 
+    WHERE Username = @Username;
+
+    -- Compute hash of the input password using stored salt
+    SET @ComputedHash = HASHBYTES('SHA2_512', @Password + CONVERT(NVARCHAR, @StoredSalt));
+
+    -- Check if computed hash matches stored hash
+    IF @ComputedHash = @StoredHash
+        SELECT 'Login successful' AS Result;
+    ELSE
+        SELECT 'Invalid username or password' AS Result;
+END;
+```
+
+---
+
+### **Testing Login Authentication**
+```sql
+EXEC AuthenticateUser @Username = 'johndoe', @Password = 'SecurePassword123!';
+```
+
+---
+
+### **Security Enhancements**
+✅ **Use a stronger hashing algorithm like bcrypt or Argon2** (SHA2_512 is good but bcrypt is better for password hashing).  
+✅ **Store salts with a larger size (e.g., 32 bytes)**.  
+✅ **Implement account lockout mechanisms for multiple failed logins**.  
+
+Would you like an **example using bcrypt in C# or Python**? 🚀
 
